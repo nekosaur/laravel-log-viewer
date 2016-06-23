@@ -17,6 +17,11 @@ class LaravelLogViewer
      */
     private static $file;
 
+    /**
+     * @var string date
+     */
+    private static $date;
+
     private static $levels_classes = [
         'debug' => 'info',
         'info' => 'info',
@@ -91,20 +96,24 @@ class LaravelLogViewer
         $pattern = '/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\].*/';
 
         if (!self::$file) {
-            $log_file = self::getFiles();
-            if(!count($log_file)) {
+            $log_file = self::getFiles(false, self::$date);
+            if (!count($log_file)) {
                 return [];
             }
             self::$file = $log_file[0];
         }
 
-        if (File::size(self::$file) > self::MAX_FILE_SIZE) return null;
+        if (File::size(self::$file) > self::MAX_FILE_SIZE) {
+            return null;
+        }
 
         $file = File::get(self::$file);
 
         preg_match_all($pattern, $file, $headings);
 
-        if (!is_array($headings)) return $log;
+        if (!is_array($headings)) {
+            return $log;
+        }
 
         $log_data = preg_split($pattern, $file);
 
@@ -116,7 +125,6 @@ class LaravelLogViewer
             for ($i=0, $j = count($h); $i < $j; $i++) {
                 foreach ($log_levels as $level_key => $level_value) {
                     if (strpos(strtolower($h[$i]), '.' . $level_value)) {
-
                         preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\].*?(\w+)\.' . $level_key . ': (.*?)( in .*?:[0-9]+)?$/', $h[$i], $current);
 
                         if (!isset($current[3])) continue;
@@ -143,14 +151,24 @@ class LaravelLogViewer
      * @param bool $basename
      * @return array
      */
-    public static function getFiles($basename = false)
+    public static function getFiles($basename = false, $date = false)
     {
+        if ($date) {
+            self::$date = $date;
+        }
+
         $files = glob(storage_path() . '/logs/*');
         $files = array_reverse($files);
         $files = array_filter($files, 'is_file');
-        if ($basename && is_array($files)) {
+        if (is_array($files)) {
             foreach ($files as $k => $file) {
-                $files[$k] = basename($file);
+                if (!empty($date) && strpos($file, $date) === false) {
+                    unset($files[$k]);
+                } else if ($basename) {
+                    $files[$k] = basename($file);
+                } else {
+                    $files[$k] = $file;
+                }
             }
         }
         return array_values($files);
