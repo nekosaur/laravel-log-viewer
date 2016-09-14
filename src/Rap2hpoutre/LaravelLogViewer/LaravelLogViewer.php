@@ -87,7 +87,66 @@ class LaravelLogViewer
     /**
      * @return array
      */
-    public static function all()
+    public static function all($pattern = null)
+    {
+        $log = array();
+
+        $log_levels = self::getLogLevels();
+
+        if (!isset($pattern)) {
+            $pattern = '/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\].*/';
+        }
+
+        $log_files = self::getFiles(false);
+
+        if (!count($log_files)) {
+            return [];
+        }
+
+        for ($f = 0; $f < count($log_files); $f++) {
+            $file = File::get($log_files[$f]);
+
+            preg_match_all($pattern, $file, $headings);
+
+            if (is_array($headings)) {
+                $log_data = preg_split($pattern, $file);
+
+                if ($log_data[0] < 1) {
+                    array_shift($log_data);
+                }
+
+                foreach ($headings as $h) {
+                    for ($i=0, $j = count($h); $i < $j; $i++) {
+                        foreach ($log_levels as $level_key => $level_value) {
+                            if (strpos(strtolower($h[$i]), '.' . $level_value)) {
+                                preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\].*?(\w+)\.' . $level_key . ': (.*?)( in .*?:[0-9]+)?$/', $h[$i], $current);
+
+                                if (!isset($current[3])) continue;
+
+                                $log[] = array(
+                                    'context' => $current[2],
+                                    'level' => $level_value,
+                                    'level_class' => self::$levels_classes[$level_value],
+                                    'level_img' => self::$levels_imgs[$level_value],
+                                    'date' => $current[1],
+                                    'text' => $current[3],
+                                    'in_file' => isset($current[4]) ? $current[4] : null,
+                                    'stack' => preg_replace("/^\n*/", '', $log_data[$i])
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return array_reverse($log);
+    }
+
+    /**
+     * @return array
+     */
+    public static function daily()
     {
         $log = array();
 
@@ -101,6 +160,7 @@ class LaravelLogViewer
                 return [];
             }
             self::$file = $log_file[0];
+            // dd(self::$file);
         }
 
         if (File::size(self::$file) > self::MAX_FILE_SIZE) {
