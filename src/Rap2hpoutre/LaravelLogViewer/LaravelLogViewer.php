@@ -93,8 +93,10 @@ class LaravelLogViewer
 
         $log_levels = self::getLogLevels();
 
+        $date_pattern = '/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\].*/';
+
         if (!isset($pattern)) {
-            $pattern = '/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\].*/';
+            $pattern = $date_pattern;
         }
 
         $log_files = self::getFiles(false);
@@ -109,7 +111,7 @@ class LaravelLogViewer
             preg_match_all($pattern, $file, $headings);
 
             if (is_array($headings)) {
-                $log_data = preg_split($pattern, $file);
+                $log_data = preg_split($date_pattern, $file);
 
                 if ($log_data[0] < 1) {
                     array_shift($log_data);
